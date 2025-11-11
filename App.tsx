@@ -1,57 +1,97 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import {
+  Directions,
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import Animated, {
+  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
 
 export default function App() {
+  // Animated values
+  const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
+  const rotation = useSharedValue(0);
 
-  const contextX = useSharedValue(0);
-  const contextY = useSharedValue(0);
-
-  // ✅ Animated style
+  // Animated style
   const animatedStyle = useAnimatedStyle(() => {
+    const backgroundColor = interpolateColor(
+      scale.value,
+      [1, 1.5],
+      ['orange', 'green'],
+    );
+
     return {
+      backgroundColor,
       transform: [
+        { scale: scale.value },
         { translateX: translateX.value },
-        { translateY: translateY.value },
+        { rotate: `${rotation.value}rad` },
       ],
     };
   });
 
-  // ✅ Gesture setup
-  const gesture = Gesture.Pan()
+  // Long press changes scale and color
+  const longPressGesture = Gesture.LongPress()
+    .minDuration(500)
     .onStart(() => {
-      // Save starting position
-      contextX.value = translateX.value;
-      contextY.value = translateY.value;
-    })
-    .onUpdate(event => {
-      // Update position relative to starting point
-      translateX.value = contextX.value + event.translationX;
-      translateY.value = contextY.value + event.translationY;
+      scale.value = withSpring(1.5);
     })
     .onEnd(() => {
-      translateX.value = withSpring(0);
-      translateY.value = withSpring(0);
+      scale.value = withSpring(1);
     });
 
+  // Fling gestures
+  const flingLeftGesture = Gesture.Fling()
+    .direction(Directions.LEFT)
+    .onEnd(() => {
+      translateX.value = withSpring(-100);
+    });
+
+  const flingRightGesture = Gesture.Fling()
+    .direction(Directions.RIGHT)
+    .onEnd(() => {
+      translateX.value = withSpring(100);
+    });
+
+  // Rotation gesture
+  const rotationGesture = Gesture.Rotation()
+    .onUpdate(event => {
+      rotation.value = event.rotation;
+    })
+    .onEnd(() => {
+      rotation.value = withSpring(0);
+    });
+
+  // Pinch gesture for zoom
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate(event => {
+      scale.value = event.scale;
+    })
+    .onEnd(() => {
+      scale.value = withSpring(1);
+    });
+
+  // Combine gestures (allow pinch + rotate + fling + long press)
+  const combinedGesture = Gesture.Simultaneous(
+    pinchGesture,
+    rotationGesture,
+    longPressGesture,
+    flingLeftGesture,
+    flingRightGesture,
+  );
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <GestureDetector gesture={gesture}>
-          <Animated.View style={[styles.box, animatedStyle]} />
-        </GestureDetector>
-      </View>
+    <GestureHandlerRootView style={styles.container}>
+      <GestureDetector gesture={combinedGesture}>
+        <Animated.View style={[styles.box, animatedStyle]} />
+      </GestureDetector>
     </GestureHandlerRootView>
   );
 }
@@ -63,8 +103,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   box: {
-    width: 100,
-    height: 100,
+    width: 150,
+    height: 150,
     backgroundColor: 'orange',
     borderRadius: 10,
   },
