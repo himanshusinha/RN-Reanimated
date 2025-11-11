@@ -8,6 +8,7 @@ import {
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 
 export default function App() {
@@ -38,6 +39,10 @@ export default function App() {
       // Update position relative to starting point
       translateX.value = contextX.value + event.translationX;
       translateY.value = contextY.value + event.translationY;
+    })
+    .onEnd(() => {
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
     });
 
   return (
